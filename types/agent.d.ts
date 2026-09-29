@@ -15,6 +15,18 @@ export interface ProjectSummary {
   reasoning_effort?: string | null;
   goal?: string | null;
   default_sandbox?: SandboxMode;
+  is_temporary?: number | boolean;
+  authorized_at?: string | null;
+}
+
+export interface DirectoryAuthorizationRequest {
+  request_id: string;
+  project_id: string;
+  project_name: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected" | "expired";
+  created_at: string;
+  expires_at: string;
 }
 
 export interface RunningTurnSummary {

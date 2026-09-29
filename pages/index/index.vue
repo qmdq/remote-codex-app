@@ -8,6 +8,7 @@ import type {
   McpServer,
   PendingTurnSnapshot,
   TimelineItem,
+  DirectoryAuthorizationRequest,
 } from "../../types/agent";
 import { agent } from "../../utils/agent";
 import GlassNavbar from "../../components/glass-navbar/GlassNavbar.vue";
@@ -106,6 +107,9 @@ const projectName = ref(agent.selectedProject?.name || "未选择项目");
 const sandbox = ref<"read_only" | "workspace_write">(agent.selectedProject?.default_sandbox || "workspace_write");
 const models = ref<string[]>(agent.models.choices);
 const model = ref(agent.selectedProject?.model || agent.models.default);
+const selectedProjectId = ref(agent.selectedProject?.id || "");
+const directoryRequests = ref<DirectoryAuthorizationRequest[]>([...agent.directoryAuthorizations]);
+const authorizationBusy = ref(false);
 const running = ref(false);
 const queuedPrompts = ref<{ id: string; text: string; ts: string }[]>([]);
 const followupGuideOpen = ref(false);
@@ -768,6 +772,38 @@ watch(
 );
 
 const modelIndex = computed(() => Math.max(0, models.value.indexOf(model.value)));
+const currentProjectSnapshot = ref<ProjectSummary | null>(
+  agent.projects.find((item) => item.id === selectedProjectId.value) ||
+  (agent.selectedProject?.id === selectedProjectId.value ? agent.selectedProject : null) ||
+  null,
+);
+const currentProject = computed(() => currentProjectSnapshot.value);
+const isTemporaryProject = computed(() => {
+  const project = currentProject.value;
+  return Boolean(project && (project.is_temporary === 1 || project.is_temporary === true));
+});
+const activeAuthorizationRequest = computed(() => directoryRequests.value
+  .filter((item) => item.project_id === selectedProjectId.value && item.status !== "approved")
+  .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0] || null);
+const needsDirectoryAuthorization = computed(() => (
+  isTemporaryProject.value && !currentProject.value?.authorized_at
+));
+const authorizationStatusText = computed(() => {
+  if (!needsDirectoryAuthorization.value) return "";
+  const request = activeAuthorizationRequest.value;
+  if (!request || request.status === "expired") return "临时聊天未授权目录，仅可只读对话";
+  if (request.status === "rejected") return "PC 已拒绝目录授权，可重新申请";
+  if (request.status === "pending") return "等待 PC 选择并批准项目目录";
+  return "临时聊天未授权目录，仅可只读对话";
+});
+const syncSelectedProject = (project: typeof agent.selectedProject) => {
+  selectedProjectId.value = project?.id || "";
+  currentProjectSnapshot.value = project || null;
+  sandbox.value = project?.default_sandbox || "workspace_write";
+  if (project && (project.is_temporary === 1 || project.is_temporary === true)) {
+    sandbox.value = "read_only";
+  }
+};
 const markdownBlocks = (body: string) => parseMarkdown(body);
 const messageImagePath = (item: ChatMessage) => {
   if (item.imagePath) return item.imagePath;
@@ -861,6 +897,24 @@ const notice = (text: string, tone: "info" | "error" = "info") => {
     if (!pageActive.value) return;
     notices.value = notices.value.filter((entry) => entry.id !== item.id);
   }, 2200);
+};
+
+const requestDirectoryAuthorization = async () => {
+  if (!needsDirectoryAuthorization.value || authorizationBusy.value) return;
+  authorizationBusy.value = true;
+  try {
+    const requests = await agent.requestDirectoryAuthorization(
+      currentProject.value,
+      "临时聊天需要访问 PC 项目目录",
+    );
+    directoryRequests.value = [...requests];
+    const active = requests.find((item) => item.status === "pending");
+    notice(active ? "已发送目录授权请求，请在 PC 管理页选择目录" : "目录授权请求已提交");
+  } catch (error: any) {
+    notice(error?.message || "目录授权请求失败", "error");
+  } finally {
+    authorizationBusy.value = false;
+  }
 };
 
 const padTime = (value: number) => String(value).padStart(2, "0");
@@ -1516,6 +1570,16 @@ const send = async () => {
     notice("请先选择项目", "error");
     return;
   }
+  if (needsDirectoryAuthorization.value && image) {
+    notice("临时聊天未授权目录，请先申请目录授权后再上传图片", "error");
+    void requestDirectoryAuthorization();
+    return;
+  }
+  if (needsDirectoryAuthorization.value && sandbox.value === "workspace_write") {
+    notice("临时聊天仅支持只读对话，请先授权目录", "error");
+    void requestDirectoryAuthorization();
+    return;
+  }
   if (thinking.value) {
     if (image) {
       notice("执行中暂不能排队图片，请先停止任务", "error");
@@ -1590,7 +1654,11 @@ const send = async () => {
     }
     const finalPrompt = imagePath ? `${text}\n\n[用户上传图片：${imagePath}]`.trim() : text;
     if (!finalPrompt.trim()) throw new Error("请输入内容");
-    const started = await agent.startTurn(finalPrompt, sandbox.value, project);
+    const started = await agent.startTurn(
+      finalPrompt,
+      needsDirectoryAuthorization.value ? "read_only" : sandbox.value,
+      project,
+    );
     const isStillOrigin = (
       agent.selectedProject?.id === project.id &&
       (
@@ -1792,6 +1860,11 @@ const submitEditTurn = async () => {
 };
 
 const openFiles = () => {
+  if (needsDirectoryAuthorization.value) {
+    notice("临时聊天未授权目录，请先申请授权", "error");
+    void requestDirectoryAuthorization();
+    return;
+  }
   uni.navigateTo({ url: "/pages/files/files" });
 };
 
@@ -2067,6 +2140,11 @@ const onFullscreenButtonEnd = () => {
 
 const chooseImage = async () => {
   if (uploadingImage.value) return;
+  if (needsDirectoryAuthorization.value) {
+    notice("临时聊天未授权目录，请先申请目录授权", "error");
+    void requestDirectoryAuthorization();
+    return;
+  }
   try {
     selectedImage.value = await chooseImageSource();
   } catch (error: any) {
@@ -2108,6 +2186,11 @@ const textReferencePattern = /\.(?:py|ts|tsx|js|jsx|vue|md|json|css|scss|html?|x
 const canEditReference = (reference: MessageReference) => reference.kind === "web" || textReferencePattern.test(reference.path);
 
 const openEditReference = (path: string) => {
+  if (needsDirectoryAuthorization.value) {
+    notice("临时聊天未授权目录，不能读取文件", "error");
+    void requestDirectoryAuthorization();
+    return;
+  }
   previewLoading.value = true;
   previewEditing.value = false;
   agent.readFile(path, 768 * 1024)
@@ -2127,6 +2210,11 @@ const openEditReference = (path: string) => {
 };
 
 const openFileReference = (path: string) => {
+  if (needsDirectoryAuthorization.value) {
+    notice("临时聊天未授权目录，不能读取文件", "error");
+    void requestDirectoryAuthorization();
+    return;
+  }
   previewLoading.value = true;
   previewEditing.value = false;
   agent.readFile(path, 768 * 1024)
@@ -2218,9 +2306,19 @@ onShow(() => {
   syncTheme();
   state.value = agent.state;
   projectName.value = agent.selectedProject?.name || "未选择项目";
-  sandbox.value = agent.selectedProject?.default_sandbox || sandbox.value;
+  syncSelectedProject(agent.selectedProject);
   models.value = [...agent.models.choices];
   model.value = agent.selectedProject?.model || agent.models.default;
+  directoryRequests.value = [...agent.directoryAuthorizations];
+  if (needsDirectoryAuthorization.value && agent.state === "online") {
+    agent.loadDirectoryAuthorizationStatus(currentProject.value).then((requests) => {
+      directoryRequests.value = [...requests];
+    }).catch(() => undefined);
+  }
+  agent.onDirectoryAuthorizationsChange = (requests) => {
+    if (!pageActive.value) return;
+    directoryRequests.value = [...requests];
+  };
 
   agent.onStateChange = (next) => {
     if (!pageActive.value) return;
@@ -2240,6 +2338,17 @@ onShow(() => {
     if (!pageActive.value) return;
     projectName.value = selected?.name || "未选择项目";
     model.value = selected?.model || agent.models.default;
+    syncSelectedProject(selected);
+    directoryRequests.value = [...agent.directoryAuthorizations];
+    if (
+      selected &&
+      (selected.is_temporary === 1 || selected.is_temporary === true) &&
+      agent.state === "online"
+    ) {
+      agent.loadDirectoryAuthorizationStatus(selected).then((requests) => {
+        directoryRequests.value = [...requests];
+      }).catch(() => undefined);
+    }
     if (
       currentProjectId !== (selected?.id || "") ||
       currentSessionId !== (selected?.current_session_id || "") ||
@@ -2296,6 +2405,7 @@ onHide(() => {
   }
   if (agent.onStateChange) agent.onStateChange = null;
   if (agent.onProjectsChange) agent.onProjectsChange = null;
+  if (agent.onDirectoryAuthorizationsChange) agent.onDirectoryAuthorizationsChange = null;
   if (agent.onTimelineChange) agent.onTimelineChange = null;
   if (screenFull.value) exitScreenFull();
   (uni as any).offWindowResize?.(handleChatWindowResize);
@@ -2314,6 +2424,7 @@ onUnload(() => {
   if (agent.onMessage === handleScreenMessage) agent.onMessage = null;
   if (agent.onStateChange) agent.onStateChange = null;
   if (agent.onProjectsChange) agent.onProjectsChange = null;
+  if (agent.onDirectoryAuthorizationsChange) agent.onDirectoryAuthorizationsChange = null;
   if (agent.onTimelineChange) agent.onTimelineChange = null;
   if (historyRefreshTimer) {
     clearTimeout(historyRefreshTimer);
@@ -2978,6 +3089,18 @@ onUnload(() => {
         </scroll-view>
       </view>
 
+      <view v-if="needsDirectoryAuthorization" class="temporary-auth-bar">
+        <view class="temporary-auth-copy">
+          <text class="temporary-auth-title">{{ authorizationStatusText }}</text>
+          <text class="temporary-auth-detail">授权后可访问文件、上传图片并转为正式项目</text>
+        </view>
+        <button
+          class="temporary-auth-button"
+          :disabled="authorizationBusy || activeAuthorizationRequest?.status === 'pending'"
+          @click="requestDirectoryAuthorization"
+        >{{ authorizationBusy ? "提交中" : activeAuthorizationRequest?.status === "pending" ? "等待 PC" : "授权目录" }}</button>
+      </view>
+
       <view class="toolbar">
         <picker
           class="model-picker"
@@ -2999,11 +3122,13 @@ onUnload(() => {
           <button
             class="tool-button"
             :class="{ active: sandbox === 'read_only' }"
+            :disabled="needsDirectoryAuthorization"
             @click="sandbox = 'read_only'"
           >只读</button>
           <button
             class="tool-button"
             :class="{ active: sandbox === 'workspace_write' }"
+            :disabled="needsDirectoryAuthorization"
             @click="sandbox = 'workspace_write'"
           >写入</button>
         </view>
@@ -3012,7 +3137,11 @@ onUnload(() => {
 
         <button class="screen-button" @click="openScreenControl">屏幕</button>
 
-        <button class="image-button" :disabled="uploadingImage" @click="chooseImage">图片</button>
+        <button
+          class="image-button"
+          :disabled="uploadingImage || needsDirectoryAuthorization"
+          @click="chooseImage"
+        >图片</button>
 
       </view>
 
@@ -4182,6 +4311,52 @@ onUnload(() => {
   width: 100%;
   min-height: 30px;
   margin-bottom: 8px;
+}
+.temporary-auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(232, 112, 58, 0.22);
+  border-radius: 12px;
+  background: rgba(232, 112, 58, 0.07);
+  box-sizing: border-box;
+}
+.temporary-auth-copy {
+  flex: 1;
+  min-width: 0;
+}
+.temporary-auth-title {
+  display: block;
+  color: #f0a06a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.temporary-auth-detail {
+  display: block;
+  margin-top: 2px;
+  color: #8b93a7;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.temporary-auth-button {
+  flex: none;
+  height: 29px;
+  padding: 0 10px;
+  border: 1px solid rgba(232, 112, 58, 0.55);
+  border-radius: 99px;
+  background: rgba(232, 112, 58, 0.14);
+  color: #f0a06a;
+  font-size: 11px;
+  line-height: 27px;
+}
+.temporary-auth-button:disabled {
+  opacity: 0.55;
+  color: #f0a06a;
 }
 .model-picker {
   flex: 0 0 auto;
@@ -5810,6 +5985,7 @@ onUnload(() => {
 .theme-light.chat-screen .files-button,
 .theme-light.chat-screen .screen-button,
 .theme-light.chat-screen .image-button,
+.theme-light.chat-screen .temporary-auth-button,
 .theme-light.chat-screen .attachment-remove {
   border-color: rgba(24, 39, 61, 0.13);
   background: #ffffff;
@@ -5855,6 +6031,22 @@ onUnload(() => {
 .theme-light.chat-screen .tool-button,
 .theme-light.chat-screen .shell-glyph {
   color: #68758a;
+}
+.theme-light.chat-screen .temporary-auth-bar {
+  border-color: rgba(217, 119, 6, 0.22);
+  background: #fff7ed;
+  box-shadow: var(--shadow-soft);
+}
+.theme-light.chat-screen .temporary-auth-title,
+.theme-light.chat-screen .temporary-auth-button {
+  color: #c2410c;
+}
+.theme-light.chat-screen .temporary-auth-detail {
+  color: #67748a;
+}
+.theme-light.chat-screen .temporary-auth-button {
+  border-color: rgba(194, 65, 12, 0.24);
+  background: #ffedd5;
 }
 
 .theme-light.chat-screen .file-change-add,

@@ -20,6 +20,7 @@ const path = ref("");
 const notice = ref("");
 const busy = ref(false);
 const syncing = ref(false);
+const creatingTemporary = ref(false);
 const expandedProjectId = ref("");
 const sessions = ref<CodexThreadSummary[]>([]);
 const archivedSessions = ref<CodexThreadSummary[]>([]);
@@ -77,6 +78,36 @@ const choose = async (project: ProjectSummary) => {
     notice.value = error?.message || "切换失败";
   } finally {
     busy.value = false;
+  }
+};
+
+const isTemporaryProject = (project: ProjectSummary) => (
+  project.is_temporary === 1 || project.is_temporary === true
+);
+
+const projectPath = (project: ProjectSummary) => (
+  isTemporaryProject(project) ? "临时聊天 · 未授权 PC 目录" : project.normalized_path
+);
+
+const createTemporary = async () => {
+  if (busy.value || creatingTemporary.value) return;
+  if (agent.state !== "online") {
+    notice.value = "先在连接页完成配对并连接";
+    return;
+  }
+  creatingTemporary.value = true;
+  notice.value = "正在创建临时聊天";
+  try {
+    await agent.createTemporaryProject();
+    projects.value = [...agent.projects];
+    selected.value = agent.selectedProject;
+    showForm.value = false;
+    notice.value = "临时聊天已创建，默认只读且不访问目录";
+    uni.switchTab({ url: "/pages/index/index" });
+  } catch (error: any) {
+    notice.value = error?.message || "临时聊天创建失败";
+  } finally {
+    creatingTemporary.value = false;
   }
 };
 
@@ -403,7 +434,7 @@ onHide(() => {
     </view>
 
     <view v-if="!projects.length && !showForm && !codexProjects.length" class="empty">
-      <text>还没有项目。添加 PC Agent 允许目录里的项目后，就可以从这里远程驱动 Codex。</text>
+      <text>还没有项目。可以先开启临时聊天，也可以添加 PC Agent 允许目录里的项目。</text>
     </view>
 
     <view
@@ -415,10 +446,13 @@ onHide(() => {
     >
       <view class="project-row">
         <view class="project-icon">{{ project.name.slice(0, 1).toUpperCase() }}</view>
-        <view class="project-main">
-          <text class="project-name">{{ project.name }}</text>
-          <text class="project-path mono">{{ project.normalized_path }}</text>
-        </view>
+          <view class="project-main">
+            <text class="project-name">{{ project.name }}</text>
+            <text class="project-path mono" :class="{ temporary: isTemporaryProject(project) }">
+              {{ projectPath(project) }}
+            </text>
+          </view>
+        <text v-if="isTemporaryProject(project)" class="temporary-tag">临时</text>
         <text v-if="selected?.id === project.id" class="current-tag">当前</text>
       </view>
       <view class="project-actions">
@@ -494,6 +528,10 @@ onHide(() => {
 
     <button class="new-project" @click="showForm = !showForm">
       {{ showForm ? "收起创建面板" : "+ 添加新项目" }}
+    </button>
+
+    <button class="new-temporary" :disabled="creatingTemporary" @click="createTemporary">
+      {{ creatingTemporary ? "创建临时聊天中" : "+ 新建临时聊天" }}
     </button>
 
     <text v-if="notice" class="notice">{{ notice }}</text>
@@ -896,6 +934,30 @@ onHide(() => {
   color: #7d8db0;
   font-size: 13px;
   line-height: 1.4;
+}
+.new-temporary {
+  width: 100%;
+  margin-top: 9px;
+  padding: 15px;
+  box-sizing: border-box;
+  border: 1px solid rgba(125, 211, 252, 0.26);
+  border-radius: 16px;
+  background: rgba(14, 28, 48, 0.78);
+  color: #a5d8ff;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.project-path.temporary {
+  color: #8d99b3;
+}
+.temporary-tag {
+  flex: none;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border: 1px solid rgba(125, 211, 252, 0.3);
+  border-radius: 99px;
+  color: #7dd3fc;
+  font-size: 10px;
 }
 .notice {
   display: block;

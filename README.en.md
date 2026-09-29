@@ -11,6 +11,7 @@ It is useful for following Codex work away from the computer and for LAN-based d
 ## Capabilities
 
 - **Codex Agent capabilities:** start or interrupt tasks, switch models, choose sandbox modes, manage multiple sessions, and sync historical sessions and PC Codex chat history.
+- **Temporary chats:** start a read-only question without selecting a directory; request folder access from chat and approve a manually selected folder on the PC to convert it into a regular project.
 - **Codex-style timeline:** expand thinking, commands, file edits, and messages by state; render Markdown; recover missed events by `seq` after reconnecting.
 - **File workbench:** browse project files; preview text, images, and HTML; edit text; upload or capture images from the chat input.
 - **Remote control:** CPU, memory, disk, and network metrics; PTY terminal; screen subscription; basic touch and keyboard input.
@@ -31,6 +32,7 @@ It is useful for following Codex work away from the computer and for LAN-based d
 - PC WebSocket connection, automatic reconnection, and local device-token storage
 - Device-token request through a six-digit pairing code
 - Project list, project creation, and project selection
+- Create temporary chats without selecting a PC directory; file, upload, and write controls stay disabled until authorization
 - Automatic discovery of local Codex projects, with one-click import inside allowed roots
 - Codex task sending, sandbox-mode selection, and interruption
 - Model list read from the PC Codex configuration, with in-session switching
@@ -66,6 +68,12 @@ Then set `projects.allowed_roots` in `config.mobile.json` to the directories you
 
 6. Return to the pairing page, enter the six-digit code, and request pairing.
 7. Approve the pending request in the PC console. The app saves `device_token`, switches to paired state, and connects automatically.
+
+## Temporary Chats and Directory Authorization
+
+Choose **New temporary chat** on the Projects page to start a read-only conversation without selecting a directory. The app hides the private scratch path and shows only a **Temporary** badge. Files, image uploads, write mode, and file previews remain blocked.
+
+When Codex needs project files, choose **Authorize directory** in the chat toolbar. The PC console shows a directory-authorization request; browse to a real project folder inside an allowed root and choose **Authorize current directory**. The app restores file capabilities automatically and converts the chat into a regular project. If the request is rejected or expires, it can be submitted again.
 
 ## License
 

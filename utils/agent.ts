@@ -8,6 +8,7 @@ import type {
   ConnectionState,
   McpServer,
   ProjectSummary,
+  DirectoryAuthorizationRequest,
   RunningTurnSummary,
   SandboxMode,
   TimelineItem,
@@ -92,7 +93,11 @@ export class AgentClient {
   projects: ProjectSummary[] = [];
   selectedProject: ProjectSummary | null = null;
   pendingTurns: PendingTurnSnapshot[] = [];
+  directoryAuthorizations: DirectoryAuthorizationRequest[] = [];
+  onDirectoryAuthorizationsChange: ((requests: DirectoryAuthorizationRequest[]) => void) | null = null;
   supportsCodexProjectSync: boolean | null = null;
+  supportsTemporaryChats: boolean | null = null;
+  supportsDirectoryAuthorization: boolean | null = null;
   supportsTerminal: boolean | null = null;
   terminalSupportsPty = false;
   timeline: TimelineItem[] = [];
@@ -508,6 +513,65 @@ export class AgentClient {
     this.resetTimeline(Number(response.payload?.latest_seq || 0));
     this.notifyProjects();
     await this.replay();
+  }
+
+  async createTemporaryProject(name = "") {
+    const response = await this.request("project.temporary.create", { name }, 10000);
+    this.selectedProject = (response.payload?.selected || null) as ProjectSummary | null;
+    this.projects = (response.payload?.projects || []) as ProjectSummary[];
+    if (this.selectedProject) {
+      uni.setStorageSync(PROJECT_KEY, this.selectedProject.id);
+    }
+    this.resetTimeline(Number(response.payload?.latest_seq || 0));
+    this.notifyProjects();
+    await this.replay();
+    return this.selectedProject;
+  }
+
+  async requestDirectoryAuthorization(
+    project = this.selectedProject,
+    reason = "临时聊天需要访问 PC 项目目录",
+  ) {
+    if (!project) throw new Error("Select a project first");
+    const response = await this.request("project.authorization.request", {
+      project_id: project.id,
+      reason,
+    }, 10000);
+    this.syncDirectoryAuthorizations(
+      (response.payload?.requests || []) as DirectoryAuthorizationRequest[],
+      response.payload?.projects as ProjectSummary[] | undefined,
+    );
+    return this.directoryAuthorizations.filter((item) => item.project_id === project.id);
+  }
+
+  async loadDirectoryAuthorizationStatus(project = this.selectedProject) {
+    if (!project) return [];
+    const response = await this.request("project.authorization.status", {
+      project_id: project.id,
+    });
+    const requests = (response.payload?.requests || []) as DirectoryAuthorizationRequest[];
+    this.syncDirectoryAuthorizations(requests, undefined, project.id);
+    return requests;
+  }
+
+  private syncDirectoryAuthorizations(
+    requests: DirectoryAuthorizationRequest[],
+    projects?: ProjectSummary[] | null,
+    projectId?: string,
+  ) {
+    const scope = projectId || this.selectedProject?.id || "";
+    this.directoryAuthorizations = [
+      ...this.directoryAuthorizations.filter((item) => item.project_id !== scope),
+      ...requests.filter((item) => !scope || item.project_id === scope),
+    ];
+    if (projects) this.projects = projects;
+    const selected = projects?.find((item) => item.id === scope);
+    if (selected) {
+      this.selectedProject = selected;
+      uni.setStorageSync(PROJECT_KEY, selected.id);
+    }
+    this.notifyProjects();
+    this.onDirectoryAuthorizationsChange?.([...this.directoryAuthorizations]);
   }
 
   async startTurn(
@@ -1116,6 +1180,8 @@ export class AgentClient {
         this.startEventSyncTimer();
         this.startProjectSyncTimer();
         this.supportsCodexProjectSync = message.payload?.capabilities?.codex_project_sync === true;
+        this.supportsTemporaryChats = message.payload?.capabilities?.temporary_chats === true;
+        this.supportsDirectoryAuthorization = message.payload?.capabilities?.directory_authorization === true;
         this.supportsTerminal = message.payload?.capabilities?.terminal === true;
         this.terminalSupportsPty = message.payload?.capabilities?.terminal_pty === true;
         this.models = {
@@ -1147,6 +1213,13 @@ export class AgentClient {
           this.syncRunningTurns(message.payload?.running_turns);
           this.notifyProjects();
         }
+        break;
+      case "project.authorization.snapshot":
+        this.syncDirectoryAuthorizations(
+          (message.payload?.requests || []) as DirectoryAuthorizationRequest[],
+          (message.payload?.projects || null) as ProjectSummary[] | null,
+          String(message.payload?.project_id || ""),
+        );
         break;
       case "codex.event":
       case "agent.event":
