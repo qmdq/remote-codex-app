@@ -3,17 +3,27 @@
 仓库地址：[https://github.com/qmdq/remote-codex-app](https://github.com/qmdq/remote-codex-app)  
 配套 PC 后端：[https://github.com/qmdq/remote-codex-backend](https://github.com/qmdq/remote-codex-backend)
 
-手机端远程控制 Codex 的 uni-app 项目，基于 Vue 3 和 WebSocket，直接用 HBuilderX 导入即可运行到 H5、Android 或 iOS。
+手机端的 RemoteCodex 客户端，基于 uni-app、Vue 3 和 WebSocket。它把 PC Codex 的核心工作流搬进手机：配对连接后可以发送和中断任务、切换模型、查看思考/命令/文件编辑时间线、管理多会话、浏览和编辑项目文件，还能监控 PC 状态、打开远程终端和屏幕控制。
+
+适合离开电脑时继续跟进 Codex 任务，也能用于局域网内的远程调试、文件检查和演示。
+
+## 能做什么
+
+- **Codex 协作**：发送/中断任务、模型切换、沙箱模式、多会话、历史会话与 PC 聊天记录同步。
+- **Codex 风格时间线**：思考、命令、文件编辑和消息按状态展开；Markdown 渲染；断线后按 `seq` 补齐事件。
+- **文件工作台**：项目文件浏览、文本/图片/HTML 预览、文本编辑和聊天内图片上传。
+- **远程控制**：CPU/内存/磁盘/网络指标、PTY 终端、屏幕订阅、触摸/键盘基础远程输入。
+- **连接安全**：6 位配对码申请、PC 端审批、设备 Token 本地保存和自动重连。
 
 ## 预览
 
-![RemoteCodex 控制台](docs/screenshots/screenshot-1.png)
-
-![RemoteCodex 连接页](docs/screenshots/screenshot-2.png)
-
-![RemoteCodex 会话页](docs/screenshots/screenshot-3.png)
-
-![RemoteCodex WebView 预览](docs/screenshots/screenshot-4.png)
+<div align="center">
+  <img src="docs/screenshots/screenshot-1.png" width="49%" alt="RemoteCodex 聊天界面">
+  <img src="docs/screenshots/screenshot-2.png" width="49%" alt="RemoteCodex 会话与任务状态">
+  <br>
+  <img src="docs/screenshots/screenshot-3.png" width="49%" alt="RemoteCodex 文件与预览">
+  <img src="docs/screenshots/screenshot-4.png" width="49%" alt="RemoteCodex 远程屏幕">
+</div>
 
 ## 功能
 
@@ -47,13 +57,14 @@
 
    打开 Agent 启动时输出的 `admin console` 网址，点「生成配对码」。
 
-如果要让手机在局域网直连 PC，用这份配置启动后端：
+如果要让手机在局域网直连 PC，先在 PC 上进入后端目录，复制局域网配置模板，再启动后端：
 
 ```powershell
+Copy-Item config.local.example.json config.mobile.json
 .\.venv\Scripts\python.exe -m app serve --config config.mobile.json
 ```
 
-该配置监听 `0.0.0.0:7800`，并把 `D:\work\code\remoteAi` 作为 allowed root。Windows 第一次启动时需要允许 Python 访问专用网络。
+然后修改 `config.mobile.json` 里的 `projects.allowed_roots` 为你实际授权的目录。该配置监听 `0.0.0.0:7800`；Windows 第一次启动时需要允许 Python 访问专用网络。
 
 6. 回到手机配对页，输入 6 位配对码并请求配对
 7. 在 PC 控制台的「待处理配对」里点「批准」。审批通过后 App 自动进入「已配对」，保存 `device_token` 并开始连接。
