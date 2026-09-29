@@ -3,13 +3,13 @@
 仓库地址：[https://github.com/qmdq/remote-codex-app](https://github.com/qmdq/remote-codex-app)  
 配套 PC 后端：[https://github.com/qmdq/remote-codex-backend](https://github.com/qmdq/remote-codex-backend)
 
-手机端的 RemoteCodex 客户端，基于 uni-app、Vue 3 和 WebSocket。它把 PC Codex 的核心工作流搬进手机：配对连接后可以发送和中断任务、切换模型、查看思考/命令/文件编辑时间线、管理多会话、浏览和编辑项目文件，还能监控 PC 状态、打开远程终端和屏幕控制。
+RemoteCodex 是一款手机端 Codex Agent 工具，基于 uni-app、Vue 3 和 WebSocket。它在移动设备上实现任务对话、思考/命令/文件编辑时间线、多会话、文件预览/编辑、终端和屏幕控制等 Codex Agent 能力；Codex 调用、命令执行和文件修改不直接发生在手机上，而是通过远程 PC Agent 安全完成。
 
 适合离开电脑时继续跟进 Codex 任务，也能用于局域网内的远程调试、文件检查和演示。
 
 ## 能做什么
 
-- **Codex 协作**：发送/中断任务、模型切换、沙箱模式、多会话、历史会话与 PC 聊天记录同步。
+- **Codex Agent 能力**：发送/中断任务、模型切换、沙箱模式、多会话、历史会话与 PC 聊天记录同步。
 - **Codex 风格时间线**：思考、命令、文件编辑和消息按状态展开；Markdown 渲染；断线后按 `seq` 补齐事件。
 - **文件工作台**：项目文件浏览、文本/图片/HTML 预览、文本编辑和聊天内图片上传。
 - **远程控制**：CPU/内存/磁盘/网络指标、PTY 终端、屏幕订阅、触摸/键盘基础远程输入。
