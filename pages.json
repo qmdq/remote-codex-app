@@ -1,0 +1,123 @@
+{
+  "pages": [
+    {
+      "path": "pages/projects/projects",
+      "style": {
+        "navigationBarTitleText": "RemoteCodex",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "会话",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom",
+        "app-plus": {
+          "softinputMode": "adjustResize"
+        }
+      }
+    },
+    {
+      "path": "pages/events/events",
+      "style": {
+        "navigationBarTitleText": "执行记录",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/files/files",
+      "style": {
+        "navigationBarTitleText": "文件",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/webview/webview",
+      "style": {
+        "navigationBarTitleText": "网页预览",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/monitor/monitor",
+      "style": {
+        "navigationBarTitleText": "设备",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom",
+        "app-plus": {
+          "softinputMode": "adjustResize"
+        }
+      }
+    },
+    {
+      "path": "pages/settings/settings",
+      "style": {
+        "navigationBarTitleText": "连接",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/pair/pair",
+      "style": {
+        "navigationBarTitleText": "设备配对",
+        "navigationBarBackgroundColor": "#070a12",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "RemoteCodex",
+    "navigationBarBackgroundColor": "#070a12",
+    "backgroundColor": "#05070d"
+  },
+  "tabBar": {
+    "color": "#7e879c",
+    "selectedColor": "#f0a06a",
+    "backgroundColor": "#0a0e1a",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/projects/projects",
+        "text": "项目",
+        "iconPath": "static/projects.png",
+        "selectedIconPath": "static/projects-active.png"
+      },
+      {
+        "pagePath": "pages/index/index",
+        "text": "会话",
+        "iconPath": "static/task.png",
+        "selectedIconPath": "static/task-active.png"
+      },
+      {
+        "pagePath": "pages/events/events",
+        "text": "执行",
+        "iconPath": "static/events.png",
+        "selectedIconPath": "static/events-active.png"
+      },
+      {
+        "pagePath": "pages/monitor/monitor",
+        "text": "设备",
+        "iconPath": "static/monitor.png",
+        "selectedIconPath": "static/monitor-active.png"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "text": "连接",
+        "iconPath": "static/settings.png",
+        "selectedIconPath": "static/settings-active.png"
+      }
+    ]
+  }
+}

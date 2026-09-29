@@ -1,0 +1,58 @@
+{
+    "name" : "RemoteCodex",
+    "appid" : "__UNI__15CCE6B",
+    "description" : "Remote Codex mobile controller",
+    "versionName" : "1.0.0",
+    "versionCode" : "100",
+    "transformPx" : false,
+    "app-plus" : {
+        "usingComponents" : true,
+        "compilerVersion" : 3,
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
+            "autoclose" : true,
+            "delay" : 0
+        },
+        "distribute" : {
+            "android" : {
+                "usesCleartextTraffic" : true,
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>"
+                ]
+            },
+            "ios" : {
+                "dSYMs" : false
+            },
+            "sdkConfigs" : {}
+        },
+        "nativePlugins" : {
+            "Aq-ChooseFile" : {
+                "__plugin_info__" : {
+                    "name" : "文件选择，支持自定义路径，自定义筛选类型，多选",
+                    "description" : "支持android 11（30）文件选择，支持自定义路径",
+                    "platforms" : "Android",
+                    "url" : "https://ext.dcloud.net.cn/plugin?id=5263",
+                    "android_package_name" : "com.codexmoble",
+                    "ios_bundle_id" : "",
+                    "isCloud" : true,
+                    "bought" : 1,
+                    "pid" : "5263",
+                    "parameters" : {}
+                }
+            }
+        }
+    },
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false,
+            "es6" : true,
+            "postcss" : true,
+            "minified" : true
+        },
+        "usingComponents" : true
+    },
+    "vueVersion" : "3"
+}
