@@ -75,6 +75,7 @@ export class AgentClient {
   private projectSyncTimer: number | null = null;
   private manualClose = false;
   private pairCode = "";
+  pairingResetRequested = false;
   private runningTurns: RunningTurnSummary[] = [];
   private runningTurnsVersion = ref(0);
   private pendingFileDiffs = new Set<string>();

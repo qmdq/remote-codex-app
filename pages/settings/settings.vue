@@ -78,6 +78,23 @@ const startPairing = () => {
   uni.navigateTo({ url: "/pages/pair/pair" });
 };
 
+const resetPairing = () => {
+  uni.showModal({
+    title: "重新配对",
+    content: "将断开当前连接并清除本机设备 Token。旧设备如需失效，请在 PC 管理页吊销。",
+    confirmText: "重新配对",
+    cancelText: "取消",
+    success: (result) => {
+      if (!result.confirm) return;
+      agent.savePairingServer(serverUrl.value, deviceName.value);
+      agent.pairingResetRequested = true;
+      token.value = "";
+      setNotice("已清除本机 Token，请使用新的配对码", "ok");
+      uni.navigateTo({ url: "/pages/pair/pair?step=1" });
+    },
+  });
+};
+
 const changeKeepScreenOn = async (event: { detail: { value: boolean } }) => {
   if (keepScreenOnBusy.value) return;
 
@@ -176,6 +193,7 @@ onShow(() => {
       <text class="field-label">设备 Token</text>
       <input v-model="token" class="input input-text mono" placeholder="自动保存" placeholder-class="placeholder" />
       <button class="ghost save" @click="saveServer">{{ state === 'online' ? "保存配置" : "保存并连接" }}</button>
+      <button class="ghost save danger" @click="resetPairing">重新配对</button>
     </view>
 
     <view v-else class="card panel pair-guide">
@@ -371,6 +389,10 @@ onShow(() => {
 }
 .ghost[disabled] {
   opacity: 0.4;
+}
+.ghost.danger {
+  border-color: rgba(248, 113, 113, 0.32);
+  color: #f87171;
 }
 .panel-head {
   display: flex;

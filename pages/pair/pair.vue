@@ -94,6 +94,11 @@ const handleMessage = (message: AgentEnvelope) => {
 };
 
 onLoad(() => {
+  if (agent.pairingResetRequested) {
+    agent.pairingResetRequested = false;
+    step.value = 1;
+    return;
+  }
   if (agent.settings.token) {
     step.value = 4;
   }
