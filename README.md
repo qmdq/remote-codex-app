@@ -1,5 +1,6 @@
 # RemoteCodex uni-app
 
+[English](README.en.md) | [中文](README.md)  
 仓库地址：[https://github.com/qmdq/remote-codex-app](https://github.com/qmdq/remote-codex-app)  
 配套 PC 后端：[https://github.com/qmdq/remote-codex-backend](https://github.com/qmdq/remote-codex-backend)
 
