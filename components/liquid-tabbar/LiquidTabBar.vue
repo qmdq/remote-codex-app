@@ -57,7 +57,6 @@ import {
   tabNavigationState,
 } from "../../utils/tab-navigation";
 
-const activeRoute = ref("");
 let navigationLock = false;
 let navigationTimeout: ReturnType<typeof setTimeout> | null = null;
 let pressMoved = false;
@@ -66,11 +65,10 @@ const routeKey = (url: string) => url.replace(/^\//, "").split("?")[0];
 
 const switchTabOnce = (url: string) => {
   const route = routeKey(url);
-  if (navigationLock || activeRoute.value === route) return;
+  if (navigationLock) return;
   const target = tabs.find((item) => routeKey(item.url) === route);
   if (target) beginTabNavigation(target.key);
   navigationLock = true;
-  activeRoute.value = route;
   if (navigationTimeout) clearTimeout(navigationTimeout);
   const finish = () => {
     navigationLock = false;
@@ -79,11 +77,10 @@ const switchTabOnce = (url: string) => {
       navigationTimeout = null;
     }
   };
-  navigationTimeout = setTimeout(finish, 500);
+  navigationTimeout = setTimeout(finish, 180);
   uni.switchTab({
     url,
     fail: () => {
-      activeRoute.value = routeKey(currentTab().url);
       cancelTabNavigation();
     },
     complete: finish,
@@ -187,7 +184,6 @@ watch(indicatorIndex, () => {
 
 onMounted(() => {
   uni.hideTabBar({ animation: false });
-  activeRoute.value = routeKey(currentTab().url);
   markTabPageMounted(props.current);
   resizeHandler = () => measureIndicator();
   uni.onWindowResize?.(resizeHandler);
@@ -256,9 +252,8 @@ const pressEnd = () => {
 };
 
 const go = (item: (typeof tabs)[number], index: number) => {
-  if (item.key !== props.current && activeRoute.value !== routeKey(item.url)) {
-    uni.vibrateShort?.({ type: "medium", fail: () => undefined });
-  }
+  if (item.key === props.current) return;
+  uni.vibrateShort?.({ type: "medium", fail: () => undefined });
   switchTabOnce(item.url);
 };
 </script>
