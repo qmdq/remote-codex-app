@@ -75,6 +75,10 @@ Choose **New temporary chat** on the Projects page to start a read-only conversa
 
 When Codex needs project files, choose **Authorize directory** in the chat toolbar. The PC console shows a directory-authorization request; browse to a real project folder inside an allowed root and choose **Authorize current directory**. The app restores file capabilities automatically and converts the chat into a regular project. If the request is rejected or expires, it can be submitted again.
 
+## Brand Assets
+
+`static/brand` contains the application logo, light and dark launch images, and common app icon sizes. Run `python scripts/generate_brand_assets.py` with Pillow installed to regenerate them.
+
 ## License
 
 GPL-3.0-or-later. Closed-source commercial integration or redistribution requires separate commercial authorization from the author.

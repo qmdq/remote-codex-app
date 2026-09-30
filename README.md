@@ -78,7 +78,7 @@ Copy-Item config.local.example.json config.mobile.json
 
 当需要让 Codex 读取或修改项目文件时，点聊天工具区的「授权目录」。PC 管理页会出现「临时聊天授权」请求，PC 端浏览并选择 allowed root 内的实际项目目录后点「授权当前目录」。批准后 App 自动恢复文件能力，该聊天转为正式项目；拒绝或超时后可重新发起请求。
 
-界面当前按 `Desktop/原型/remoteAi/index.html` 的视觉体系实现：深蓝夜色背景、橙色主操作、conic-gradient 品牌块、连接状态条、可折叠执行卡和大号设备指标。`scripts/generate_icons.py` 可重新生成 tabBar 图标，依赖 Pillow。
+界面当前按 `Desktop/原型/remoteAi/index.html` 的视觉体系实现：深蓝夜色背景、橙色主操作、conic-gradient 品牌块、连接状态条、可折叠执行卡和大号设备指标。`scripts/generate_icons.py` 可重新生成 tabBar 图标；`scripts/generate_brand_assets.py` 可重新生成应用 Logo、启动图和 App 图标尺寸，依赖 Pillow。
 
 ## License
 
