@@ -17,6 +17,7 @@ import { chooseImageSource, type SelectedImage } from "../../utils/image-source"
 import { parseMarkdown } from "../../utils/markdown";
 import { useIosTabTransition } from "../../utils/page-transition";
 import { createScreenViewer, type ScreenViewerMeasure } from "../../utils/screen-viewer";
+import { markTabPageMounted } from "../../utils/tab-navigation";
 import { syncTheme, themeClass } from "../../utils/theme";
 
 const { entering, replay } = useIosTabTransition();
@@ -2354,6 +2355,7 @@ const revertFileChange = async (path: string) => {
 };
 
 onShow(() => {
+  markTabPageMounted("chat");
   pageActive.value = true;
   syncTheme();
   state.value = agent.state;

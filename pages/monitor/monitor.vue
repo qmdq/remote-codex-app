@@ -8,6 +8,7 @@ import LiquidTabBar from "../../components/liquid-tabbar/LiquidTabBar.vue";
 import TerminalView from "../../components/terminal-view/TerminalView.vue";
 import { useIosTabTransition } from "../../utils/page-transition";
 import { createScreenViewer, type ScreenViewerMeasure } from "../../utils/screen-viewer";
+import { markTabPageMounted } from "../../utils/tab-navigation";
 import { syncTheme, themeClass } from "../../utils/theme";
 
 const { entering, replay } = useIosTabTransition();
@@ -702,6 +703,7 @@ const onScreenTouchEnd = (event: any) => {
 };
 
 onShow(() => {
+  markTabPageMounted("monitor");
   pageActive = true;
   syncTheme();
   replay();

@@ -10,6 +10,7 @@ import {
   setKeepScreenOnPreference,
 } from "../../utils/keep-screen-on";
 import { useIosTabTransition } from "../../utils/page-transition";
+import { markTabPageMounted } from "../../utils/tab-navigation";
 import { setThemeMode, syncTheme, theme, themeMode, type ThemePreference } from "../../utils/theme";
 
 const { entering, replay } = useIosTabTransition();
@@ -118,6 +119,7 @@ const changeKeepScreenOn = async (event: { detail: { value: boolean } }) => {
 };
 
 onShow(() => {
+  markTabPageMounted("settings");
   syncTheme();
   replay();
   keepScreenOn.value = isKeepScreenOnEnabled();

@@ -6,6 +6,7 @@ import { agent } from "../../utils/agent";
 import GlassNavbar from "../../components/glass-navbar/GlassNavbar.vue";
 import LiquidTabBar from "../../components/liquid-tabbar/LiquidTabBar.vue";
 import { useIosTabTransition } from "../../utils/page-transition";
+import { markTabPageMounted } from "../../utils/tab-navigation";
 import { syncTheme, themeClass } from "../../utils/theme";
 
 const { entering, replay } = useIosTabTransition();
@@ -348,6 +349,7 @@ const create = async () => {
 };
 
 onShow(() => {
+  markTabPageMounted("projects");
   syncTheme();
   replay();
   refresh();
