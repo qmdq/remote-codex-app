@@ -23,6 +23,13 @@
                     "xxxhdpi" : "static/brand/icon-192.png"
                 }
             },
+            "splashscreen" : {
+                "android" : {
+                    "hdpi" : "static/brand/splash-android-720x1280.png",
+                    "xhdpi" : "static/brand/splash-android-960x1600.png",
+                    "xxhdpi" : "static/brand/splash-android-1280x1920.png"
+                }
+            },
             "android" : {
                 "usesCleartextTraffic" : true,
                 "permissions" : [

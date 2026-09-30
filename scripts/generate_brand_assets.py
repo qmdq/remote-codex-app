@@ -59,20 +59,21 @@ def draw_brand_tile(size: int) -> Image.Image:
     return canvas.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def base_canvas(size: int, palette: dict) -> Image.Image:
-    render = size * RENDER_SCALE
-    background = vertical_gradient(render, render, palette["top"], palette["bottom"]).convert("RGBA")
-    glow = Image.new("RGBA", (render, render), (0, 0, 0, 0))
+def base_canvas(width: int, height: int, palette: dict) -> Image.Image:
+    render_w = width * RENDER_SCALE
+    render_h = height * RENDER_SCALE
+    background = vertical_gradient(render_w, render_h, palette["top"], palette["bottom"]).convert("RGBA")
+    glow = Image.new("RGBA", (render_w, render_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(glow)
-    draw.ellipse((render * -0.20, render * -0.32, render * 0.80, render * 0.20), fill=(232, 112, 58, 50))
-    draw.ellipse((render * 0.32, render * 0.74, render * 1.28, render * 1.46), fill=(56, 189, 248, 34))
-    glow = glow.filter(ImageFilter.GaussianBlur(render * 0.085))
+    draw.ellipse((render_w * -0.20, render_h * -0.32, render_w * 0.80, render_h * 0.20), fill=(232, 112, 58, 50))
+    draw.ellipse((render_w * 0.32, render_h * 0.74, render_w * 1.28, render_h * 1.46), fill=(56, 189, 248, 34))
+    glow = glow.filter(ImageFilter.GaussianBlur(render_w * 0.085))
     return Image.alpha_composite(background, glow)
 
 
 def draw_background_logo(size: int, palette: dict, rounded_ratio: float | None) -> Image.Image:
     render = size * RENDER_SCALE
-    canvas = base_canvas(size, palette)
+    canvas = base_canvas(size, size, palette)
     draw = ImageDraw.Draw(canvas)
     center = render / 2
     tile_radius = render * 0.315
@@ -99,15 +100,17 @@ def draw_transparent_logo(size: int) -> Image.Image:
     return draw_brand_tile(size)
 
 
-def draw_splash(size: int, palette: dict) -> Image.Image:
-    canvas = base_canvas(size, palette)
-    render = size * RENDER_SCALE
-    tile_size = round(render * 0.235)
+def draw_splash(width: int, height: int, palette: dict) -> Image.Image:
+    canvas = base_canvas(width, height, palette)
+    render_w = width * RENDER_SCALE
+    render_h = height * RENDER_SCALE
+    unit = min(render_w, render_h)
+    tile_size = round(unit * 0.235)
     tile = draw_transparent_logo(tile_size)
-    position = (round((render - tile_size) / 2), round(render * 0.345))
+    position = (round((render_w - tile_size) / 2), round(render_h * 0.315))
     canvas.paste(tile, position, tile)
     add_title(canvas, "RemoteCodex", "Mobile Codex Agent", palette)
-    return canvas.resize((size, size), Image.Resampling.LANCZOS)
+    return canvas.resize((width, height), Image.Resampling.LANCZOS)
 
 
 def save_rgb(image: Image.Image, path: Path):
@@ -156,7 +159,10 @@ def main():
         ("splash-dark.png", dark),
         ("splash-light.png", light),
     ]:
-        draw_splash(1536, palette).save(OUT_DIR / filename, optimize=True)
+        draw_splash(1536, 1536, palette).save(OUT_DIR / filename, optimize=True)
+    for width, height in [(720, 1280), (960, 1600), (1280, 1920)]:
+        filename = f"splash-android-{width}x{height}.png"
+        draw_splash(width, height, dark).save(OUT_DIR / filename, optimize=True)
     for size in [192, 144, 96, 72, 48]:
         save_rgb(draw_background_logo(size, dark, None), OUT_DIR / f"icon-{size}.png")
 
