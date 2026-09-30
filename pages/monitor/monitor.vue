@@ -26,6 +26,7 @@ const metrics = ref<AgentMetrics>({ ...emptyMetrics });
 const connectionState = ref(agent.state);
 const screenOn = ref(false);
 const screenData = ref("");
+const screenTransition = ref(false);
 const screenInfo = ref("屏幕监控未开启");
 const fullScreen = ref(false);
 const fullscreenLive = ref(false);
@@ -63,6 +64,9 @@ let terminalResizeTimer: number | null = null;
 let pageActive = true;
 let terminalSendQueue = Promise.resolve();
 let resumeScreenAfterShow = false;
+let screenTransitionTimer: number | null = null;
+let screenTransitionMinimumTimer: number | null = null;
+let screenTransitionStartedAt = 0;
 
 const measureFrame: ScreenViewerMeasure = async () => {
   const measured = await new Promise<any>((resolve) => {
@@ -147,8 +151,50 @@ const withPage = async (callback: () => Promise<void> | void) => {
   await callback();
 };
 
+const stopScreenTransition = () => {
+  if (screenTransitionTimer != null) {
+    clearTimeout(screenTransitionTimer);
+    screenTransitionTimer = null;
+  }
+  if (screenTransitionMinimumTimer != null) {
+    clearTimeout(screenTransitionMinimumTimer);
+    screenTransitionMinimumTimer = null;
+  }
+  screenTransition.value = false;
+};
+
+const startScreenTransition = (duration = 900) => {
+  if (screenTransitionTimer != null) clearTimeout(screenTransitionTimer);
+  if (screenTransitionMinimumTimer != null) clearTimeout(screenTransitionMinimumTimer);
+  screenTransitionStartedAt = Date.now();
+  screenTransition.value = true;
+  screenTransitionTimer = setTimeout(() => {
+    screenTransitionTimer = null;
+    screenTransition.value = false;
+  }, duration);
+};
+
+const finishScreenTransition = () => {
+  if (!screenTransition.value) return;
+  if (screenTransitionTimer != null) {
+    clearTimeout(screenTransitionTimer);
+    screenTransitionTimer = null;
+  }
+  const remaining = Math.max(0, 260 - (Date.now() - screenTransitionStartedAt));
+  screenTransitionMinimumTimer = setTimeout(() => {
+    screenTransitionMinimumTimer = null;
+    screenTransition.value = false;
+  }, remaining);
+};
+
+const frameMatchesScreenSettings = () => {
+  if (!screenFrameRealWidth.value) return true;
+  return frameWidth.value === Math.min(screenQuality.value, screenFrameRealWidth.value);
+};
+
 onUnmounted(() => {
   pageActive = false;
+  stopScreenTransition();
   if (terminalResizeTimer != null) {
     clearTimeout(terminalResizeTimer);
     terminalResizeTimer = null;
@@ -337,6 +383,7 @@ const handleMessage = (message: AgentEnvelope) => {
     frameRealHeight.value = Number(message.payload?.real_height || 0);
     const fps = Number(message.payload?.fps || screenFps.value);
     screenInfo.value = width && height ? `${width} × ${height} · ${fps}fps` : "等待画面";
+    if (screenTransition.value && frameMatchesScreenSettings()) finishScreenTransition();
   }
   if (message.type === "terminal.ready") {
     applyTerminalReady(message.payload || {});
@@ -361,6 +408,7 @@ const handleMessage = (message: AgentEnvelope) => {
     screenOn.value = false;
     screenData.value = "";
     screenInfo.value = "PC 屏幕采集不可用";
+    stopScreenTransition();
   }
   if (message.type === "error" && String(message.payload?.code || "").startsWith("terminal.")) {
     terminalError.value = String(message.payload?.message || "终端操作失败");
@@ -376,6 +424,7 @@ const toggleScreen = () => {
     screenData.value = "";
     screenInfo.value = "屏幕监控未开启";
   } else {
+    stopScreenTransition();
     agent.subscribeScreen(screenFps.value, screenQuality.value);
     screenOn.value = true;
     screenInfo.value = "等待画面";
@@ -387,6 +436,7 @@ const updateScreenSettings = (width: number, fps: number) => {
   screenFps.value = fps;
   if (agent.state !== "online" || !screenOn.value) return;
   screenInfo.value = "切换画面设置…";
+  startScreenTransition();
   agent.subscribeScreen(fps, width);
 };
 
@@ -541,6 +591,7 @@ const enterFullScreen = () => {
   settingsOpen.value = false;
   controlsOpen.value = false;
   screenViewer.reset();
+  startScreenTransition(700);
   lockLandscape();
   fullscreenLive.value = screenOn.value;
   if (agent.state === "online" && !screenOn.value) {
@@ -626,6 +677,7 @@ const exitFullScreen = () => {
   unlockOrientation();
   fullscreenLive.value = false;
   screenViewer.reset();
+  if (screenOn.value && screenData.value) startScreenTransition(520);
 };
 
 const toggleSettings = () => {
@@ -665,9 +717,11 @@ onShow(() => {
   (uni as any).offWindowResize?.(handleWindowResize);
   (uni as any).onWindowResize?.(handleWindowResize);
   if (resumeScreenAfterShow && agent.state === "online") {
+    screenData.value = "";
     agent.subscribeScreen(screenFps.value, screenQuality.value);
     screenOn.value = true;
     screenInfo.value = "等待画面";
+    startScreenTransition(1200);
   }
   if (fullScreen.value) void screenViewer.handleViewportChange();
 });
@@ -683,6 +737,7 @@ onHide(() => {
   agent.unsubscribeMetrics();
   agent.unsubscribeScreen();
   screenOn.value = false;
+  stopScreenTransition();
 });
 </script>
 
@@ -766,13 +821,20 @@ onHide(() => {
         <text>PC 画面</text>
         <text class="mono live" :class="{ on: screenOn }">{{ screenOn ? "LIVE" : "OFF" }}</text>
       </view>
-      <image
-        v-if="screenData"
-        :src="screenData"
-        mode="widthFix"
-        class="frame"
-        @click="enterFullScreen"
-      />
+      <view v-if="screenData" class="frame stage-frame" @click="enterFullScreen">
+        <image
+          :src="screenData"
+          mode="widthFix"
+          class="stage-image"
+          :class="{ refreshing: screenTransition }"
+        />
+        <view v-if="screenTransition" class="screen-transition">
+          <view class="loading-veil compact">
+            <view class="loading-orbit pulse" />
+            <text class="loading-text">正在同步画面</text>
+          </view>
+        </view>
+      </view>
       <view v-else class="frame empty-frame">
         <view class="loading-veil">
           <view v-if="screenOn" class="loading-orbit pulse" />
@@ -845,8 +907,15 @@ onHide(() => {
           :src="screenData"
           mode="scaleToFill"
           class="fullscreen-frame"
+          :class="{ refreshing: screenTransition }"
           :style="screenViewer.frameStyle.value"
         />
+        <view v-if="screenData && screenTransition" class="screen-transition">
+          <view class="loading-veil compact">
+            <view class="loading-orbit pulse" />
+            <text class="loading-text">正在同步画面</text>
+          </view>
+        </view>
         <view
           v-if="screenData && screenViewer.inputMode.value === 'mouse'"
           class="remote-cursor"
@@ -1182,6 +1251,18 @@ onHide(() => {
   width: 100%;
   border-radius: 10px;
 }
+
+.stage-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.stage-image {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  transition: filter 180ms ease, opacity 180ms ease;
+}
 .empty-frame {
   min-height: 168px;
   display: flex;
@@ -1386,6 +1467,27 @@ onHide(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.screen-transition {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 7, 15, 0.44);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: screen-veil-in 160ms ease both;
+}
+
+.fullscreen-frame.refreshing {
+  filter: blur(2px) saturate(88%);
+}
+
+.stage-image.refreshing {
+  filter: blur(2px) saturate(88%);
 }
 
 .fullscreen-frame {
@@ -1857,6 +1959,15 @@ onHide(() => {
   border-color: rgba(220, 38, 38, 0.25);
   background: rgba(220, 38, 38, 0.07);
   color: #b91c1c;
+}
+
+@keyframes screen-veil-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 </style>

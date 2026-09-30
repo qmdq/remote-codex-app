@@ -266,6 +266,7 @@ const notices = ref<{ id: number; text: string; tone: "info" | "error" }[]>([]);
 const screenActive = ref(false);
 const screenOn = ref(false);
 const screenData = ref("");
+const screenTransition = ref(false);
 const screenInfo = ref("PC 屏幕未开启");
 const screenFrameWidth = ref(0);
 const screenFrameHeight = ref(0);
@@ -286,6 +287,9 @@ let fullscreenButtonStart: { x: number; y: number; moved: number } | null = null
 const inlineScreenDragging = ref(false);
 const inlineScreenPosition = ref({ x: 12, y: 320 });
 let inlineScreenStart: { x: number; y: number; originX: number; originY: number; moved: number } | null = null;
+let screenTransitionTimer: ReturnType<typeof setTimeout> | null = null;
+let screenTransitionMinimumTimer: ReturnType<typeof setTimeout> | null = null;
+let screenTransitionStartedAt = 0;
 
 const measureScreenFrame: ScreenViewerMeasure = async () => {
   const measured = await new Promise<any>((resolve) => {
@@ -1872,6 +1876,7 @@ const openScreenControl = () => {
   screenActive.value = !screenActive.value;
   if (screenActive.value) resetInlineScreenPosition();
   if (screenActive.value && agent.state === "online") {
+    stopScreenTransition();
     agent.subscribeScreen(screenFps.value, screenQuality.value);
     screenOn.value = true;
     screenInfo.value = "等待画面";
@@ -1881,6 +1886,7 @@ const openScreenControl = () => {
     screenOn.value = false;
     screenData.value = "";
     screenInfo.value = "PC 屏幕未开启";
+    stopScreenTransition();
   }
 };
 
@@ -1896,17 +1902,60 @@ const handleScreenMessage = (message: any) => {
     screenFrameRealWidth.value = Number(message.payload?.real_width || 0);
     screenFrameRealHeight.value = Number(message.payload?.real_height || 0);
     screenInfo.value = width && height ? `${width} × ${height}` : "等待画面";
+    if (screenTransition.value && screenFrameMatchesSettings()) finishScreenTransition();
   }
   if (message.type === "error" && message.payload?.code === "screen.unavailable") {
     screenOn.value = false;
     screenData.value = "";
     screenInfo.value = "PC 屏幕采集不可用";
+    stopScreenTransition();
   }
 };
 
 const inlineScreenStyle = computed(() => ({
   transform: `translate3d(${inlineScreenPosition.value.x}px, ${inlineScreenPosition.value.y}px, 0)`,
 }));
+
+const stopScreenTransition = () => {
+  if (screenTransitionTimer != null) {
+    clearTimeout(screenTransitionTimer);
+    screenTransitionTimer = null;
+  }
+  if (screenTransitionMinimumTimer != null) {
+    clearTimeout(screenTransitionMinimumTimer);
+    screenTransitionMinimumTimer = null;
+  }
+  screenTransition.value = false;
+};
+
+const startScreenTransition = (duration = 900) => {
+  if (screenTransitionTimer != null) clearTimeout(screenTransitionTimer);
+  if (screenTransitionMinimumTimer != null) clearTimeout(screenTransitionMinimumTimer);
+  screenTransitionStartedAt = Date.now();
+  screenTransition.value = true;
+  screenTransitionTimer = setTimeout(() => {
+    screenTransitionTimer = null;
+    screenTransition.value = false;
+  }, duration);
+};
+
+const finishScreenTransition = () => {
+  if (!screenTransition.value) return;
+  if (screenTransitionTimer != null) {
+    clearTimeout(screenTransitionTimer);
+    screenTransitionTimer = null;
+  }
+  const remaining = Math.max(0, 260 - (Date.now() - screenTransitionStartedAt));
+  screenTransitionMinimumTimer = setTimeout(() => {
+    screenTransitionMinimumTimer = null;
+    screenTransition.value = false;
+  }, remaining);
+};
+
+const screenFrameMatchesSettings = () => {
+  if (!screenFrameRealWidth.value) return true;
+  return screenFrameWidth.value === Math.min(screenQuality.value, screenFrameRealWidth.value);
+};
 
 const resetInlineScreenPosition = () => {
   const info = uni.getSystemInfoSync();
@@ -2008,6 +2057,7 @@ const enterScreenFull = () => {
   screenControlsCollapsed.value = true;
   screenControlsOpen.value = false;
   screenViewer.reset();
+  startScreenTransition(700);
   lockLandscape();
   screenFullLive.value = screenOn.value;
   if (agent.state === "online" && !screenOn.value) {
@@ -2027,6 +2077,7 @@ const exitScreenFull = () => {
   unlockOrientation();
   screenFullLive.value = false;
   screenViewer.reset();
+  if (screenOn.value && screenData.value) startScreenTransition(520);
 };
 
 const handleChatWindowResize = () => {
@@ -2068,6 +2119,7 @@ const updateChatScreenSettings = (width: number, fps: number) => {
   screenFps.value = fps;
   if (agent.state !== "online" || !screenOn.value) return;
   screenInfo.value = "切换画面设置…";
+  startScreenTransition();
   agent.subscribeScreen(fps, width);
 };
 
@@ -2328,9 +2380,11 @@ onShow(() => {
       model.value = agent.selectedProject?.model || agent.models.default;
       loadHistory();
       if (screenActive.value) {
+        screenData.value = "";
         agent.subscribeScreen(screenFps.value, screenQuality.value);
         screenOn.value = true;
         screenInfo.value = "等待画面";
+        startScreenTransition(1200);
       }
     }
   };
@@ -2370,9 +2424,11 @@ onShow(() => {
   (uni as any).onWindowResize?.(handleChatWindowResize);
   if (screenFull.value) void screenViewer.handleViewportChange();
   if (screenActive.value && agent.state === "online") {
+    screenData.value = "";
     agent.subscribeScreen(screenFps.value, screenQuality.value);
     screenOn.value = true;
     screenInfo.value = "等待画面";
+    startScreenTransition(1200);
   }
 
   replay();
@@ -2413,12 +2469,14 @@ onHide(() => {
     agent.unsubscribeScreen();
   }
   screenOn.value = false;
+  stopScreenTransition();
   clearEntranceTimers();
 });
 
 onUnload(() => {
   pageActive.value = false;
   keyboardHeight.value = 0;
+  stopScreenTransition();
   (uni as any).offWindowResize?.(handleChatWindowResize);
   uni.offKeyboardHeightChange?.(handleKeyboardHeightChange);
   if (agent.onMessage === handleScreenMessage) agent.onMessage = null;
@@ -2689,6 +2747,7 @@ onUnload(() => {
           class="inline-screen-frame"
           :src="screenData"
           mode="aspectFit"
+          :class="{ refreshing: screenTransition }"
         />
       <view v-else class="inline-screen-empty">
           <view class="loading-veil">
@@ -2768,9 +2827,16 @@ onUnload(() => {
           class="screen-full-frame"
           :src="screenData"
           mode="scaleToFill"
+          :class="{ refreshing: screenTransition }"
           :style="screenViewer.frameStyle.value"
         />
-      <view v-else class="screen-full-empty">
+        <view v-if="screenData && screenTransition" class="screen-transition">
+          <view class="loading-veil compact">
+            <view class="loading-orbit pulse" />
+            <text class="loading-text">正在同步画面</text>
+          </view>
+        </view>
+      <view v-if="!screenData" class="screen-full-empty">
           <view class="loading-veil">
             <view v-if="screenOn" class="loading-orbit pulse" />
             <text :class="{ 'loading-text': screenOn }">{{ screenOn ? "等待画面" : screenInfo }}</text>
@@ -5515,6 +5581,28 @@ onUnload(() => {
   font-size: 12px;
 }
 
+.inline-screen-frame {
+  transition: filter 180ms ease, opacity 180ms ease;
+}
+
+.inline-screen-frame.refreshing,
+.screen-full-frame.refreshing {
+  filter: blur(2px) saturate(88%);
+}
+
+.screen-transition {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 7, 15, 0.44);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: screen-veil-in 160ms ease both;
+}
+
 .fullscreen-float-button {
   position: fixed;
   top: 14px;
@@ -6599,5 +6687,14 @@ onUnload(() => {
 }
 .message-enter {
   animation: message-enter 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes screen-veil-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>
