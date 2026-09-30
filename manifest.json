@@ -17,6 +17,12 @@
         "distribute" : {
             "android" : {
                 "usesCleartextTraffic" : true,
+                "icons" : {
+                    "hdpi" : "static/brand/icon-72.png",
+                    "xhdpi" : "static/brand/icon-96.png",
+                    "xxhdpi" : "static/brand/icon-144.png",
+                    "xxxhdpi" : "static/brand/icon-192.png"
+                },
                 "permissions" : [
                     "<uses-permission android:name=\"android.permission.INTERNET\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>"
