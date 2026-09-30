@@ -108,8 +108,11 @@ const pressedIndex = ref(-1);
 const indicatorDragging = ref(false);
 const indicatorTarget = ref(-1);
 const releasedIndex = ref(-1);
-const indicatorLeft = ref(0);
-const indicatorWidth = ref(0);
+const initialWindowWidth = Number(uni.getSystemInfoSync().windowWidth || 375);
+const initialIndicatorWidth = Math.max(1, (initialWindowWidth - 24) / tabs.length);
+const initialIndicatorIndex = Math.max(0, tabs.findIndex((item) => item.key === props.current));
+const indicatorLeft = ref(initialIndicatorWidth * initialIndicatorIndex);
+const indicatorWidth = ref(initialIndicatorWidth);
 let releaseTimer: ReturnType<typeof setTimeout> | null = null;
 let resizeHandler: (() => void) | null = null;
 
@@ -125,7 +128,7 @@ const indicatorStyle = computed(() => {
   return {
     width: indicatorWidth.value ? `${indicatorWidth.value}px` : "20%",
     left: "0px",
-    transform: `translate3d(${indicatorLeft.value}px, 0, 0) scaleX(${indicatorDragging.value ? 1.06 : 1})`,
+    transform: `translate3d(${indicatorLeft.value}px, 0, 0) scaleX(${indicatorDragging.value ? 1.02 : 1})`,
   };
 });
 
@@ -133,6 +136,7 @@ const measureIndicator = async () => {
   const windowWidth = Number(uni.getSystemInfoSync().windowWidth || 0);
   if (windowWidth <= 0) return;
   const width = Math.max(1, (windowWidth - 24) / tabs.length);
+  if (Math.abs(width - indicatorWidth.value) < 0.5) return;
   indicatorWidth.value = width;
   indicatorLeft.value = Math.max(0, indicatorIndex.value) * width;
 };
@@ -287,8 +291,8 @@ const go = (item: (typeof tabs)[number], index: number) => {
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 8px 20px rgba(232, 112, 58, 0.16);
   transition:
-    transform 0.42s cubic-bezier(0.28, 1.18, 0.36, 1),
-    width 0.2s cubic-bezier(0.28, 1.18, 0.36, 1);
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
 
