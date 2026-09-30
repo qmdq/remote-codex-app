@@ -2690,8 +2690,11 @@ onUnload(() => {
           :src="screenData"
           mode="aspectFit"
         />
-        <view v-else class="inline-screen-empty">
-          <text>{{ screenOn ? "等待画面…" : screenInfo }}</text>
+      <view v-else class="inline-screen-empty">
+          <view class="loading-veil">
+            <view v-if="screenOn" class="loading-orbit pulse" />
+            <text :class="{ 'loading-text': screenOn }">{{ screenOn ? "等待画面" : screenInfo }}</text>
+          </view>
         </view>
         <view
           class="fullscreen-float-button"
@@ -2767,8 +2770,11 @@ onUnload(() => {
           mode="scaleToFill"
           :style="screenViewer.frameStyle.value"
         />
-        <view v-else class="screen-full-empty">
-          <text>{{ screenOn ? "等待画面…" : screenInfo }}</text>
+      <view v-else class="screen-full-empty">
+          <view class="loading-veil">
+            <view v-if="screenOn" class="loading-orbit pulse" />
+            <text :class="{ 'loading-text': screenOn }">{{ screenOn ? "等待画面" : screenInfo }}</text>
+          </view>
         </view>
       </view>
       <view
@@ -2832,9 +2838,9 @@ onUnload(() => {
           </view>
         </view>
 
-        <view v-if="previewLoading" class="preview-loading">
-          <view class="thinking-dots"><view /><view /><view /></view>
-          <text>正在读取文件</text>
+          <view v-if="previewLoading" class="preview-loading">
+            <view class="loading-orbit pulse" />
+            <text class="loading-text">正在读取文件</text>
         </view>
         <template v-else-if="previewFile">
           <text v-if="previewFile.truncated" class="preview-truncated">内容较大，当前只显示部分内容。</text>

@@ -34,13 +34,15 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 const activeRoute = ref("");
 let navigationLock = false;
 let navigationTimeout: ReturnType<typeof setTimeout> | null = null;
+let pressMoved = false;
 
 const routeKey = (url: string) => url.replace(/^\//, "").split("?")[0];
 
 const switchTabOnce = (url: string) => {
-  if (navigationLock || activeRoute.value === routeKey(url)) return;
+  const route = routeKey(url);
+  if (navigationLock || activeRoute.value === route) return;
   navigationLock = true;
-  activeRoute.value = routeKey(url);
+  activeRoute.value = route;
   if (navigationTimeout) clearTimeout(navigationTimeout);
   const finish = () => {
     navigationLock = false;
@@ -49,9 +51,12 @@ const switchTabOnce = (url: string) => {
       navigationTimeout = null;
     }
   };
-  navigationTimeout = setTimeout(finish, 1200);
+  navigationTimeout = setTimeout(finish, 500);
   uni.switchTab({
     url,
+    fail: () => {
+      activeRoute.value = routeKey(currentTab().url);
+    },
     complete: finish,
   });
 };
@@ -102,12 +107,13 @@ const tabs = [
 const pressedIndex = ref(-1);
 const indicatorDragging = ref(false);
 const indicatorTarget = ref(-1);
-const suppressClick = ref(false);
 const releasedIndex = ref(-1);
 const indicatorLeft = ref(0);
 const indicatorWidth = ref(0);
 let releaseTimer: ReturnType<typeof setTimeout> | null = null;
 let resizeHandler: (() => void) | null = null;
+
+const currentTab = () => tabs.find((item) => item.key === props.current) || tabs[0];
 
 const indicatorIndex = computed(() => {
   if (indicatorTarget.value >= 0) return indicatorTarget.value;
@@ -118,8 +124,8 @@ const indicatorIndex = computed(() => {
 const indicatorStyle = computed(() => {
   return {
     width: indicatorWidth.value ? `${indicatorWidth.value}px` : "20%",
-    left: `${indicatorLeft.value}px`,
-    transform: `scaleX(${indicatorDragging.value ? 1.06 : 1})`,
+    left: "0px",
+    transform: `translate3d(${indicatorLeft.value}px, 0, 0) scaleX(${indicatorDragging.value ? 1.06 : 1})`,
   };
 });
 
@@ -137,6 +143,7 @@ watch(indicatorIndex, () => {
 
 onMounted(() => {
   uni.hideTabBar({ animation: false });
+  activeRoute.value = routeKey(currentTab().url);
   resizeHandler = () => measureIndicator();
   uni.onWindowResize?.(resizeHandler);
   setTimeout(measureIndicator, 60);
@@ -157,6 +164,7 @@ const pressStart = (index: number) => {
   pressedIndex.value = index;
   indicatorTarget.value = index;
   indicatorDragging.value = true;
+  pressMoved = false;
 };
 
 const pressMove = (event: any) => {
@@ -169,6 +177,7 @@ const pressMove = (event: any) => {
   const index = Math.floor((point.clientX - 12) / itemWidth);
   const next = Math.max(0, Math.min(tabs.length - 1, index));
   if (next !== indicatorTarget.value) {
+    pressMoved = true;
     indicatorTarget.value = next;
     pressedIndex.value = next;
     measureIndicator();
@@ -177,13 +186,16 @@ const pressMove = (event: any) => {
 };
 
 const pressFinish = () => {
+  const wasPressed = pressedIndex.value >= 0;
+  const moved = pressMoved;
   const index = indicatorTarget.value;
+  pressEnd();
+  if (!wasPressed || !moved) return;
+
   const target = index >= 0 ? tabs[index] : null;
   if (target && target.key !== props.current) {
-    suppressClick.value = true;
     switchTabOnce(target.url);
   }
-  pressEnd();
 };
 
 const pressEnd = () => {
@@ -199,11 +211,7 @@ const pressEnd = () => {
 };
 
 const go = (item: (typeof tabs)[number], index: number) => {
-  if (suppressClick.value) {
-    suppressClick.value = false;
-    return;
-  }
-  if (item.key !== props.current) {
+  if (item.key !== props.current && activeRoute.value !== routeKey(item.url)) {
     uni.vibrateShort?.({ type: "medium", fail: () => undefined });
   }
   switchTabOnce(item.url);
@@ -234,8 +242,8 @@ const go = (item: (typeof tabs)[number], index: number) => {
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     inset 0 -16px 26px rgba(255, 255, 255, 0.02),
     0 16px 34px rgba(3, 6, 14, 0.34);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(172%);
+  -webkit-backdrop-filter: blur(20px) saturate(172%);
 }
 
 .tabbar-material::after {
@@ -246,7 +254,7 @@ const go = (item: (typeof tabs)[number], index: number) => {
   width: 38%;
   height: 108px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), rgba(232, 112, 58, 0.11), transparent);
-  filter: blur(20px);
+  filter: blur(16px);
   transform: rotate(13deg);
   pointer-events: none;
 }
@@ -279,9 +287,8 @@ const go = (item: (typeof tabs)[number], index: number) => {
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 8px 20px rgba(232, 112, 58, 0.16);
   transition:
-    left 0.56s cubic-bezier(0.34, 1.46, 0.44, 1),
-    transform 0.56s cubic-bezier(0.34, 1.46, 0.44, 1),
-    width 0.56s cubic-bezier(0.34, 1.46, 0.44, 1);
+    transform 0.42s cubic-bezier(0.28, 1.18, 0.36, 1),
+    width 0.2s cubic-bezier(0.28, 1.18, 0.36, 1);
   will-change: transform;
 }
 

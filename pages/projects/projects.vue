@@ -463,7 +463,10 @@ onHide(() => {
       <view v-if="expandedProjectId === project.id" class="session-drawer">
         <view class="session-head">
           <text class="session-heading">会话</text>
-          <text v-if="sessionsBusy && expandedProjectId === project.id" class="session-loading">读取中</text>
+          <view v-if="sessionsBusy && expandedProjectId === project.id" class="session-loading loading-veil compact">
+            <view class="loading-orbit pulse" />
+            <text class="loading-text">读取中</text>
+          </view>
         </view>
         <button
           class="session-item"

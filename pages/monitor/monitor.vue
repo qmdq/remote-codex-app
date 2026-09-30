@@ -774,7 +774,10 @@ onHide(() => {
         @click="enterFullScreen"
       />
       <view v-else class="frame empty-frame">
-        <text>{{ screenInfo }}</text>
+        <view class="loading-veil">
+          <view v-if="screenOn" class="loading-orbit pulse" />
+          <text :class="{ 'loading-text': screenOn }">{{ screenInfo }}</text>
+        </view>
       </view>
       <view v-if="screenData" class="stage-hint">
         <text>点击进入全屏触摸</text>

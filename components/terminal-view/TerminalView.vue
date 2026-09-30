@@ -8,7 +8,10 @@
   >
     <view class="terminal-view-surface" :id="surfaceId" />
     <view class="terminal-view-loading" v-if="loading">
-      <text>{{ loadingText }}</text>
+      <view class="loading-veil">
+        <view class="loading-orbit pulse" />
+        <text class="loading-text">{{ loadingText }}</text>
+      </view>
       <button v-if="failed" class="terminal-view-retry" @click.stop="retry">重试</button>
     </view>
   </view>

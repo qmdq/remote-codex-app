@@ -21,8 +21,8 @@ export const useIosTabTransition = () => {
         entering.value = true;
         timers.push(setTimeout(() => {
           entering.value = false;
-        }, 390));
-      }, 16));
+        }, 360));
+      }, 12));
     });
   };
 

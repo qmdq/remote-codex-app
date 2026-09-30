@@ -480,7 +480,10 @@ onShow(() => {
       <text class="progress-label mono">{{ formatSize(uploadProgress.received) }} / {{ formatSize(uploadProgress.total) }} · {{ uploadPercent }}%</text>
     </view>
 
-    <view v-if="loading" class="state">读取中…</view>
+    <view v-if="loading" class="state loading-veil">
+      <view class="loading-orbit pulse" />
+      <text class="loading-text">正在读取</text>
+    </view>
 
     <view v-if="file" class="preview">
       <view class="preview-head">
